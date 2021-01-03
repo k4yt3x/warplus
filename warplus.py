@@ -146,6 +146,9 @@ class RequestSender(threading.Thread):
                 proxies.append(proxy)
 
         finally:
+            #if proxies is Nonetype, then it has no len()
+            if proxies is None:
+                proxies = []
             if succeeded:
                 _print(
                     f"[Successes: {successes} | Fails: {fails} | Proxies: {len(proxies)}] Thread {self.name} succeeded",
