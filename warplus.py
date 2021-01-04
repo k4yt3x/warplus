@@ -23,7 +23,7 @@ import time
 import requests
 
 
-VERSION = "1.0.0"
+VERSION = "1.0.1"
 
 HEADERS = {
     "Content-Type": "application/json; charset=UTF-8",
@@ -76,6 +76,7 @@ class RequestSender(threading.Thread):
         global successes
         global fails
         global proxies
+        global thread_pool
 
         succeeded = False
         error_message = ""
@@ -146,15 +147,26 @@ class RequestSender(threading.Thread):
                 proxies.append(proxy)
 
         finally:
+
+            information = [
+                f"Successes: {successes}",
+                f"Fails: {fails}",
+                # f"Live Threads: {threading.active_count()}",
+                f"Live Threads: {len([t for t in thread_pool if t.is_alive()])}",
+            ]
+
+            # this information is not accurate
+            # information.append(f"Proxies in Pool: {len(proxies)}") if proxies else None
+
             if succeeded:
                 _print(
-                    f"[Successes: {successes} | Fails: {fails} | Proxies: {len(proxies)}] Thread {self.name} succeeded",
+                    f"[{' | '.join(information)}] Thread {self.name} succeeded",
                     file=sys.stderr,
                 )
 
             else:
                 _print(
-                    f"[Successes: {successes} | Fails: {fails} | Proxies: {len(proxies)}] Thread {self.name} failed{error_message}",
+                    f"[{' | '.join(information)}] Thread {self.name} failed{error_message}",
                     file=sys.stderr,
                 )
 
