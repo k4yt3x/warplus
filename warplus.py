@@ -4,7 +4,7 @@
 Name: WARPlus
 Author: K4YT3X
 Date Created: January 1, 2021
-Last Modified: January 3, 2021
+Last Modified: January 4, 2021
 
 Descriptin: WARPlus is a tool similar to ALIILAPRO/warp-plus-cloudflare.
 """
@@ -20,10 +20,13 @@ import threading
 import time
 
 # third-party imports
+from avalon_framework import Avalon
 import requests
 
+# create a thread lock for Avalon Framework so it is thread-safe
+Avalon.thread_lock = threading.Lock()
 
-VERSION = "1.0.1"
+VERSION = "1.1.0"
 
 HEADERS = {
     "Content-Type": "application/json; charset=UTF-8",
@@ -45,7 +48,6 @@ class RequestSender(threading.Thread):
         self,
         warpid: str,
         interval: int,
-        post_url: str,
         limit: int,
         timeout: int,
         autoremove: bool,
@@ -53,7 +55,6 @@ class RequestSender(threading.Thread):
         threading.Thread.__init__(self)
         self.warpid = warpid
         self.interval = interval
-        self.post_url = post_url
         self.limit = limit
         self.timeout = timeout
         self.autoremove = autoremove
@@ -65,7 +66,7 @@ class RequestSender(threading.Thread):
         while self.running and (self.limit is None or successes < self.limit):
             self.send_request()
             time.sleep(self.interval)
-        _print(f"Thread {self.name} exiting")
+        Avalon.warning(f"Thread {self.name} exiting")
 
     def stop(self):
         self.running = False
@@ -103,15 +104,16 @@ class RequestSender(threading.Thread):
             # send request
             if proxies is None:
                 response = requests.post(
-                    self.post_url, json=post_data, headers=HEADERS, timeout=self.timeout
+                    f"https://api.cloudflareclient.com/v0a{random.randint(100, 999)}/reg",
+                    json=post_data,
+                    headers=HEADERS,
+                    timeout=self.timeout,
                 )
 
             else:
-
                 proxy = proxies.popleft()
-
                 response = requests.post(
-                    self.post_url,
+                    f"https://api.cloudflareclient.com/v0a{random.randint(100, 999)}/reg",
                     json=post_data,
                     headers=HEADERS,
                     timeout=self.timeout,
@@ -149,37 +151,24 @@ class RequestSender(threading.Thread):
         finally:
 
             information = [
-                f"Successes: {successes}",
-                f"Fails: {fails}",
+                f"Successes: {Avalon.FG.G}{successes}{Avalon.FG.DGR}",
+                f"Fails: {Avalon.FG.R}{fails}{Avalon.FG.DGR}",
                 # f"Live Threads: {threading.active_count()}",
-                f"Live Threads: {len([t for t in thread_pool if t.is_alive()])}",
+                f"Live Threads: {Avalon.FG.W}{len([t for t in thread_pool if t.is_alive()])}{Avalon.FG.DGR}",
             ]
 
             # this information is not accurate
             # information.append(f"Proxies in Pool: {len(proxies)}") if proxies else None
 
             if succeeded:
-                _print(
+                Avalon.debug_info(
                     f"[{' | '.join(information)}] Thread {self.name} succeeded",
-                    file=sys.stderr,
                 )
 
             else:
-                _print(
+                Avalon.debug_info(
                     f"[{' | '.join(information)}] Thread {self.name} failed{error_message}",
-                    file=sys.stderr,
                 )
-
-
-def _print(message: str, **kwargs):
-    """thread-safe print
-
-    Args:
-        message (str): message to print
-    """
-    print_lock.acquire()
-    print(message, **kwargs)
-    print_lock.release()
 
 
 def parse_arguments():
@@ -213,7 +202,9 @@ def parse_arguments():
         type=int,
     )
 
-    parser.add_argument("-o", "--timeout", help="server connection timeout", type=int)
+    parser.add_argument(
+        "-o", "--timeout", help="server connection timeout", default=8, type=int
+    )
 
     parser.add_argument("-p", "--proxies", help="use proxies", action="store_true")
 
@@ -222,13 +213,6 @@ def parse_arguments():
         "--autoremove",
         help="automatically remove unusable proxies",
         action="store_true",
-    )
-
-    parser.add_argument(
-        "-u",
-        "--url",
-        help="URL to send the POST request to",
-        default=f"https://api.cloudflareclient.com/v0a{random.randint(100, 999)}/reg",
     )
 
     parser.add_argument(
@@ -255,12 +239,14 @@ def get_proxies() -> collections.deque:
     # if response status code is 200, return the list of retrieved proxies
     if proxies_request.status_code == requests.codes.ok:
         proxies = proxies_request.text.split()
-        _print(f"Successfully retried a list of proxies ({len(proxies)} proxies)")
+        Avalon.info(
+            f"Successfully retried a list of proxies {Avalon.FM.RST}({len(proxies)} proxies)"
+        )
         return collections.deque(proxies)
 
     # requests failed to download the list of proxies, raise an exception
     else:
-        _print("An error occured while retrieving a list of proxies")
+        Avalon.error("An error occured while retrieving a list of proxies")
         proxies_request.raise_for_status()
 
 
@@ -280,6 +266,7 @@ thread_pool = []
 # successes / failures counters
 successes = 0
 fails = 0
+starting_time = time.time()
 proxies = None
 
 # download a list of proxies if proxies are to be used
@@ -290,11 +277,11 @@ if args.proxies:
 for thread_id in range(args.threads):
 
     thread = RequestSender(
-        args.warpid, args.interval, args.url, args.limit, args.timeout, args.autoremove
+        args.warpid, args.interval, args.limit, args.timeout, args.autoremove
     )
 
     thread.name = str(thread_id)
-    _print(f"Starting thread {thread.name}")
+    Avalon.info(f"Starting thread {thread.name}")
     thread.start()
     thread_pool.append(thread)
 
@@ -305,12 +292,15 @@ try:
 
 # if OS kill signal is received or ^C is pressed, stop threads
 except (SystemExit, KeyboardInterrupt):
-    _print("Exit signal received, stopping threads")
+    Avalon.warning("Exit signal received, stopping threads")
     for thread in thread_pool:
         thread.stop()
 
-    _print("Waiting for threads to exit")
+    Avalon.info("Waiting for threads to exit")
     for thread in thread_pool:
         thread.join()
 
-print("Script finished")
+Avalon.info(f"{Avalon.FM.BD}Execution Summary")
+Avalon.info(f"Time elapsed: {Avalon.FM.RST}{round(time.time() - starting_time, 2)}")
+Avalon.info(f"Successes: {Avalon.FM.RST}{successes} ({successes}GB)")
+Avalon.info(f"Fails: {Avalon.FM.RST}{fails}")
