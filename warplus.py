@@ -4,7 +4,7 @@
 Name: WARPlus
 Author: K4YT3X
 Date Created: January 1, 2021
-Last Modified: January 4, 2021
+Last Modified: February 9, 2021
 
 Descriptin: WARPlus is a tool similar to ALIILAPRO/warp-plus-cloudflare.
 """
@@ -26,7 +26,7 @@ import requests
 # create a thread lock for Avalon Framework so it is thread-safe
 Avalon.thread_lock = threading.Lock()
 
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 
 HEADERS = {
     "Content-Type": "application/json; charset=UTF-8",
@@ -182,7 +182,7 @@ def parse_arguments():
     parser.add_argument(
         "-t",
         "--threads",
-        help="number of threads to use",
+        help="number of threads to use, 0 will set the number of threads equal to the number of proxies",
         default=1,
         type=int,
     )
@@ -273,6 +273,10 @@ proxies = None
 # download a list of proxies if proxies are to be used
 if args.proxies:
     proxies = get_proxies()
+
+# if threads is 0, set threads equal to the number of proxies
+if args.threads == 0:
+    args.threads = len(proxies)
 
 # start threads and add them into the thread pool
 for thread_id in range(args.threads):
