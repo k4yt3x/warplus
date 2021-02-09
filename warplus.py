@@ -26,7 +26,7 @@ import requests
 # create a thread lock for Avalon Framework so it is thread-safe
 Avalon.thread_lock = threading.Lock()
 
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 HEADERS = {
     "Content-Type": "application/json; charset=UTF-8",
@@ -118,8 +118,8 @@ class RequestSender(threading.Thread):
                     headers=HEADERS,
                     timeout=self.timeout,
                     proxies={
-                        "http": f"https://{proxy}",
-                        "https": f"https://{proxy}",
+                        "http": f"socks4://{proxy}",
+                        "https": f"socks4://{proxy}",
                     },
                 )
 
@@ -233,7 +233,8 @@ def get_proxies() -> collections.deque:
     """
 
     proxies_request = requests.get(
-        "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all"
+        # "https://api.proxyscrape.com/v2/?request=getproxies&protocol=http&timeout=10000&country=all&ssl=all&anonymity=all"
+        "https://api.proxyscrape.com/v2/?request=getproxies&protocol=socks4&timeout=10000&country=all"
     )
 
     # if response status code is 200, return the list of retrieved proxies
