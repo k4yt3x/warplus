@@ -1,3 +1,6 @@
+> [!IMPORTANT]
+> Cloudflare WARP+'s referral program has been terminated as of November 1, 2024. Thus, the program has fulfilled its purpose and will be archived.
+
 # WARPlus
 
 WARPlus helps you to get free quota on CloudFlare's WARP+.
